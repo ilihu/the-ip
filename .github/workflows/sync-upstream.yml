@@ -2,7 +2,8 @@ name: Sync upstream
 
 on:
   schedule:
-    - cron: '23 4 * * *'
+    # Check for upstream updates every 6 hours
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 permissions:
@@ -14,14 +15,14 @@ concurrency:
 
 jobs:
   sync:
-    if: github.event.repository.fork && (github.event_name == 'workflow_dispatch' || vars.AUTO_SYNC_UPSTREAM == 'true')
+    if: github.event.repository.fork
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: write
       actions: write
     env:
-      GH_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ secrets.SYNC_PAT || github.token }}
       REPO: ${{ github.repository }}
       ENABLE_CF_DEPLOY: ${{ vars.ENABLE_CF_DEPLOY }}
     steps:
@@ -29,18 +30,38 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          echo "Checking upstream synchronization for $REPO..."
           metadata=$(gh api "repos/$REPO")
-          parent=$(jq -r '.parent.full_name' <<< "$metadata")
+          parent=$(jq -r '.parent.full_name // empty' <<< "$metadata")
           branch=$(jq -r '.default_branch' <<< "$metadata")
-          if [ "$parent" != 'zhihui-hu/one-ip' ]; then
-            echo 'Only direct forks of zhihui-hu/one-ip are synchronized.'
+
+          if [ -z "$parent" ]; then
+            echo "Repository is not a fork."
             exit 0
           fi
+
+          if [ "$parent" != 'zhihui-hu/one-ip' ]; then
+            echo "Parent repository is $parent, only direct forks of zhihui-hu/one-ip are synchronized."
+            exit 0
+          fi
+
+          echo "Parent repository: $parent (default branch: $branch)"
           before=$(gh api "repos/$REPO/commits/$branch" --jq '.sha')
-          # The GitHub merge-upstream endpoint fails on conflicts; no force reset.
-          gh api --method POST "repos/$REPO/merge-upstream" -f branch="$branch"
+
+          # Call GitHub official merge-upstream API
+          sync_response=$(gh api --method POST "repos/$REPO/merge-upstream" -f branch="$branch")
+          merge_type=$(jq -r '.merge_type // "none"' <<< "$sync_response")
+          message=$(jq -r '.message // "No message"' <<< "$sync_response")
+
+          echo "Merge type: $merge_type ($message)"
+
           after=$(gh api "repos/$REPO/commits/$branch" --jq '.sha')
-          if [ "$before" != "$after" ] && [ "$ENABLE_CF_DEPLOY" = 'true' ]; then
-            # GITHUB_TOKEN pushes do not trigger push workflows. Dispatch explicitly.
-            gh workflow run pages.yml --repo "$REPO" --ref "$branch"
+          if [ "$before" != "$after" ]; then
+            echo "Successfully updated $branch from $before to $after"
+            if [ "$ENABLE_CF_DEPLOY" = 'true' ]; then
+              echo "Triggering pages deployment workflow..."
+              gh workflow run pages.yml --repo "$REPO" --ref "$branch" || true
+            fi
+          else
+            echo "Already up-to-date with upstream $parent."
           fi
