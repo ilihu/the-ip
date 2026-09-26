@@ -77,6 +77,12 @@ Workers Builds builds and deploys when `main` receives a commit. The button abov
 
 Some lookups rely on third-party services and may fail because of rate limits or CORS restrictions. HTTP timing isn't the same as ICMP Ping. IP classifications and reputation scores are references, not official decisions from AI platforms.
 
+### WebMCP
+
+In browsers with native `document.modelContext`, the site registers structured tools for IP, WHOIS and subdomain lookups, network and AI checks, service status, and browser diagnostics. `one_ip_catalog` lists supported sites, platforms and pages; `one_ip_open_page` opens interactive permission and human verification pages. Tools reuse the site's existing sources and request limits, and support cancellation. Browsers without WebMCP continue to use the normal UI.
+
+WebMCP is experimental. For local testing, enable `chrome://flags/#enable-webmcp-testing` and inspect `await document.modelContext.getTools()`. Live Chrome use requires the [WebMCP Origin Trial](https://developer.chrome.com/docs/ai/webmcp/) or later native support; this repository does not include an origin trial token. Tools are exposed only to the current same-origin page, with no cross-origin iframe delegation. Results can contain third-party content; users should decide whether to share browser fingerprints, egress IPs or WebRTC results with an agent.
+
 ## Screenshots
 
 IP addresses, detailed locations and ISP / ASN information have been redacted. Values are not live results.
@@ -90,6 +96,17 @@ IP addresses, detailed locations and ISP / ASN information have been redacted. V
     <td><img src="docs/screenshots/mobile-home-dark-redacted.png" alt="Redacted mobile dark overview" width="360" /></td>
   </tr>
 </table>
+
+## Business Cooperation
+
+One IP offers a closed-source commercial edition and related services for organizations that need network and browser environment checks, AI service connectivity diagnostics, batch acceptance testing or continuous monitoring. Cooperation can cover:
+
+- Commercial licenses and team workflows
+- Private deployment and data isolation
+- Custom development, integrations and API access
+- Technical consulting, deployment and ongoing support
+
+To discuss the commercial edition, private deployment or a custom solution, email [ip@huzhihui.com](mailto:ip@huzhihui.com) with your use case, deployment model and expected scale. See the [GitHub repository](https://github.com/zhihui-hu/one-ip) for project details. The final service scope, data permissions and delivery terms are subject to agreement.
 
 ## Update your fork
 
@@ -166,6 +183,8 @@ The script uploads non-empty values, preserves existing secrets and skips missin
 reCAPTCHA uses v3 score-based keys. The backend validates hostname, the `browser_check` action and score, with a passing threshold of 0.5. The v2 checkbox and Enterprise assessment API are unsupported. Production rejects localhost.
 
 ## Structure and data sources
+
+Data sources differ by edition: the open-source edition uses publicly accessible data on the internet and public third-party APIs; the closed-source commercial edition supports private deployment and uses data from the private deployment environment. The specific data scope, retention and usage rights are subject to the commercial plan and contract.
 
 - `src/app.css`: interface styles; `src/components/ui`: shadcn/ui components.
 - `src/views`: network, browser, AI and status pages; `public/worker`: Worker APIs.
