@@ -24,6 +24,7 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.SYNC_PAT || github.token }}
       REPO: ${{ github.repository }}
+      CF_DEPLOY_HOOK_URL: ${{ secrets.CF_DEPLOY_HOOK_URL }}
       ENABLE_CF_DEPLOY: ${{ vars.ENABLE_CF_DEPLOY }}
     steps:
       - name: Sync without overwriting fork changes
@@ -58,10 +59,18 @@ jobs:
           after=$(gh api "repos/$REPO/commits/$branch" --jq '.sha')
           if [ "$before" != "$after" ]; then
             echo "Successfully updated $branch from $before to $after"
+            if [ -n "$CF_DEPLOY_HOOK_URL" ]; then
+              echo "Triggering Cloudflare Deploy Hook..."
+              curl -s -X POST "$CF_DEPLOY_HOOK_URL" || true
+            fi
             if [ "$ENABLE_CF_DEPLOY" = 'true' ]; then
               echo "Triggering pages deployment workflow..."
               gh workflow run pages.yml --repo "$REPO" --ref "$branch" || true
             fi
           else
             echo "Already up-to-date with upstream $parent."
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "$CF_DEPLOY_HOOK_URL" ]; then
+              echo "Manual trigger: ensuring Cloudflare build is triggered..."
+              curl -s -X POST "$CF_DEPLOY_HOOK_URL" || true
+            fi
           fi
