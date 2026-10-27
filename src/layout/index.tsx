@@ -244,9 +244,7 @@ export function AppLayout() {
           </UnderlineHover>{" "}
           ·{" "}
           <UnderlineHover asChild>
-            <a href="https://ipbot.net">
-              {t("navigation.ipbotCommercialSite")}
-            </a>
+            <a href="https://ipbot.net">IPBot</a>
           </UnderlineHover>
         </footer>
       </div>

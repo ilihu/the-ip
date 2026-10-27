@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Pending } from "@/components/toolkit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { UnderlineHover } from "@/components/underline-hover";
 import { t } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { Clock, Fingerprint, Languages, Monitor } from "lucide-react";
@@ -19,9 +20,11 @@ export function BrowserSummary() {
       <CardHeader>
         <div className="row-between">
           <CardTitle>{t("common.browserEnvironment")}</CardTitle>
-          <Link className="small muted" to="/browser/environment">
-            {t("browser.viewFullCheck")}
-          </Link>
+          <UnderlineHover asChild>
+            <Link className="small muted" to="/browser/environment">
+              {t("browser.viewFullCheck")}
+            </Link>
+          </UnderlineHover>
         </div>
       </CardHeader>
       <CardContent>

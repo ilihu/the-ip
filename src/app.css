@@ -1161,28 +1161,75 @@ body {
 }
 
 .country-flag {
+  position: relative;
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 18px;
   height: 14px;
   flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 2px;
   vertical-align: -2px;
+}
+.country-flag img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 1;
+  transform: scale(1);
+  transition:
+    opacity 280ms ease,
+    transform 280ms ease;
+}
+.country-flag[data-state="loading"] {
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--muted) 90%, transparent) 30%,
+    color-mix(in srgb, var(--foreground) 6%, var(--muted)) 50%,
+    color-mix(in srgb, var(--muted) 90%, transparent) 70%
+  );
+  background-size: 300% 100%;
+  animation: flag-shimmer 1.2s ease-in-out infinite;
+}
+.country-flag[data-state="loading"] img {
+  opacity: 0;
+  transform: scale(0.92);
+}
+.country-flag[data-state="fallback"] svg {
+  width: 72%;
+  height: 72%;
+  color: var(--muted-foreground);
+}
+@keyframes flag-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .country-flag[data-state="loading"] {
+    animation: none;
+  }
+  .country-flag img {
+    transition: none;
+  }
 }
 .country-flag-lg,
 .country-flag-xl {
-  border-radius: 4px;
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--foreground) 8%, transparent),
-    0 1px 3px color-mix(in srgb, var(--foreground) 10%, transparent);
   vertical-align: middle;
 }
 .country-flag-lg {
   width: 32px;
   height: 24px;
+  border-radius: 3px;
 }
 .country-flag-xl {
   width: 48px;
   height: 36px;
-  border-radius: 6px;
+  border-radius: 4px;
 }
 .home-overview {
   gap: 10px;
