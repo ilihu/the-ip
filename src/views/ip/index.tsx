@@ -1,19 +1,22 @@
 import { useLayoutEffect, useRef, useState, useId } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { LookupForm } from "@/components/lookup-form";
 import { IpText, ErrorNotice, Pending } from "@/components/toolkit";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useLookupHistory } from "@/hooks/use-lookup-history";
 import { t } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { gsap } from "gsap";
 import { Search, X } from "lucide-react";
-import { lookupIp } from "./api";
+import { lookupIpWithFallback } from "./api";
 import type { CoffeeLookup } from "./coffee";
 import { IpDetails } from "./details";
+import { dossierTopClass } from "./styles";
 
 export default function IpPage() {
   const { ip = "" } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const history = useLookupHistory<CoffeeLookup>("ip-tools:coffee-history:v1");
   const cached = history.find(ip);
@@ -25,8 +28,9 @@ export default function IpPage() {
     staleTime: 300_000,
     retry: false,
     queryFn: async ({ signal }) => {
-      const result = await lookupIp(ip, signal);
-      history.save(ip, result);
+      const result = await lookupIpWithFallback(ip, signal);
+      // Degraded results must not replace a full cached lookup.
+      if (!result.fallback) history.save(ip, result);
       return result;
     },
   });
@@ -61,7 +65,7 @@ export default function IpPage() {
       type="button"
       variant="ghost"
       size="icon"
-      className="size-8 shrink-0 text-primary"
+      className="ml-auto size-8 shrink-0 text-primary"
       aria-label={searchOpen ? t("ip.collapseSearch") : t("ip.expandSearch")}
       aria-expanded={searchOpen}
       aria-controls={searchId}
@@ -93,16 +97,19 @@ export default function IpPage() {
           onSubmit={(value) =>
             value === ip
               ? void query.refetch()
-              : navigate(`/lookup/ip/${encodeURIComponent(value)}`)
+              : navigate({
+                  pathname: `/ip/${encodeURIComponent(value)}`,
+                  search: location.search,
+                })
           }
         />
       </div>
     </div>
   );
   const recent = (
-    <div className="ip-recent-row">
-      <div className="ip-recent">
-        <span>
+    <div className="flex items-center gap-3 pt-2">
+      <div className="flex min-w-0 flex-1 items-center gap-2.5 overflow-x-auto text-[11px] whitespace-nowrap text-muted-foreground [scrollbar-width:none] max-md:gap-2">
+        <span className="max-md:shrink-0">
           {history.entries.length
             ? t("common.recentLookups")
             : t("common.suggestedLookups")}
@@ -116,10 +123,14 @@ export default function IpPage() {
             <button
               key={value}
               type="button"
+              className="cursor-pointer border-0 px-1 py-0.5 text-foreground max-md:min-h-8 max-md:px-1.5 max-md:py-1"
               onClick={() =>
                 value === ip
                   ? void query.refetch()
-                  : navigate(`/lookup/ip/${encodeURIComponent(value)}`)
+                  : navigate({
+                      pathname: `/ip/${encodeURIComponent(value)}`,
+                      search: location.search,
+                    })
               }
             >
               <IpText ip={value} link={false} />
@@ -130,11 +141,21 @@ export default function IpPage() {
     </div>
   );
   return (
-    <div className="lookup-page ip-detail-page">
+    <div className="max-md:min-w-0 max-md:max-w-full [&_[data-slot=input-group]]:![border:0] [&_[data-slot=input-group]]:!bg-muted [&_[data-slot=input-group]]:![box-shadow:none]">
       <h1 className="sr-only">{t("common.ipLookup")}</h1>
       <ErrorNotice error={query.error} />
+      {query.data?.fallback && !query.isFetching && (
+        <Alert className="my-4">
+          <AlertDescription>
+            {t("ip.primarySourceUnavailableNotice")}
+          </AlertDescription>
+        </Alert>
+      )}
       {query.isFetching && (
-        <p className="status-line" role="status">
+        <p
+          className="py-5 text-center text-[0.88rem] leading-[1.8] text-muted-foreground"
+          role="status"
+        >
           <Pending>{t("common.lookingUpEllipsis")}</Pending>
         </p>
       )}
@@ -146,7 +167,7 @@ export default function IpPage() {
           recent={recent}
         />
       ) : (
-        <div className="ip-dossier-top">
+        <div className={`${dossierTopClass} bg-card`}>
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold">
               {t("common.ipLookup")}

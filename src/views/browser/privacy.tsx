@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import { ToolCard, Facts } from "@/components/toolkit";
 import { Button } from "@/components/ui/button";
-import { UnderlineHover } from "@/components/underline-hover";
 import { t } from "@/i18n";
 import WebRtcPage from "@/views/webrtc";
 import { useQuery } from "@tanstack/react-query";
@@ -95,6 +93,7 @@ export default function Privacy() {
     <>
       <ToolCard title={t("browser.permissionsCapabilities")}>
         <Facts
+          valueClassName="max-w-[70%]"
           rows={[
             ...(permissions.data ?? []),
             [
@@ -152,7 +151,7 @@ export default function Privacy() {
             {t("browser.testMicrophonePermission")}
           </Button>
         </div>
-        <p className="small muted mt-2" role="status">
+        <p className="mt-2 text-[0.78rem] text-muted-foreground" role="status">
           {message ||
             t(
               "browser.permissionsRequestedAfterClickingMediaStreamsCloseAfter",
@@ -162,11 +161,6 @@ export default function Privacy() {
       <div className="mt-3">
         <WebRtcPage />
       </div>
-      <p className="small muted mt-3">
-        <UnderlineHover asChild>
-          <Link to="/network/dns">{t("browser.viewDnsEgress")}</Link>
-        </UnderlineHover>
-      </p>
     </>
   );
 }

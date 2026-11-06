@@ -62,6 +62,7 @@ const columns: ColumnDef<Check>[] = [
 const titles: Record<string, string> = {
   environment: t("common.environment"),
   fingerprint: t("common.fingerprint"),
+  checks: t("common.environmentChecks"),
   consistency: t("common.consistency"),
   automation: t("common.automation"),
   privacy: t("common.permissionsPrivacy"),
@@ -159,8 +160,8 @@ function FingerprintResults() {
   return (
     <>
       <ToolCard title={t("common.browserFingerprint")}>
-        <div className="row-between gap-3">
-          <p className="small muted">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[0.78rem] text-muted-foreground">
             {t("browser.calculatedLocallyComparesResultsWithinCurrentPage")}
           </p>
           <Button disabled={busy} onClick={run}>
@@ -176,6 +177,7 @@ function FingerprintResults() {
         <ErrorNotice error={error} />
         {result && (
           <Facts
+            valueClassName="max-w-[70%]"
             rows={[
               [t("browser.fingerprintjsVersion"), result.version],
               ["Visitor ID", result.visitorId],
@@ -190,7 +192,7 @@ function FingerprintResults() {
             ]}
           />
         )}
-        <p className="small muted mt-2">
+        <p className="mt-2 text-[0.78rem] text-muted-foreground">
           {t("browser.matchingIdentifiersDoProveSameDeviceFingerprintCaptcha")}
         </p>
       </ToolCard>
@@ -198,7 +200,7 @@ function FingerprintResults() {
         <div className="mt-3">
           <ToolCard title={t("browser.fingerprintComponents")}>
             <DataTable
-              className="fingerprint-table"
+              className="[&_td]:py-2! [&_td]:whitespace-nowrap! [&_td:nth-child(2)]:text-[0.8rem] [&_th:first-child]:w-[30%] [&_th:last-child]:w-[20%] [&_th:nth-child(2)]:w-[50%] max-sm:[&_td]:px-2! max-sm:[&_th]:px-2! max-sm:[&_th:first-child]:w-[35%] max-sm:[&_th:last-child]:w-[25%] max-sm:[&_th:nth-child(2)]:w-[40%]"
               getRowId={(row) => row.name}
               data={result.components.filter((component) =>
                 hasResultValue(parseDetail(component.detail)),
@@ -329,7 +331,7 @@ function Checks({ page }: { page: string }) {
           )
         }
       />
-      <p className="small muted mt-3">
+      <p className="mt-3 text-[0.78rem] text-muted-foreground">
         {t("browser.observableSignalsShownTheyCannotDetermineBrowserBrand")}
       </p>
     </ToolCard>
@@ -337,11 +339,13 @@ function Checks({ page }: { page: string }) {
 }
 export default function BrowserPage({ page }: { page: string }) {
   return (
-    <div className="browser-diagnostics">
+    // `.sweep-shine` (index.css) is unlayered, so the faster cycle needs `!`.
+    <div className="[&_table]:table-fixed [&_.sweep-shine]:[animation-duration:1s]!">
       <PageHeading title={titles[page]} />
       {page === "environment" ? (
         <ToolCard title={t("common.browserEnvironment")}>
           <Facts
+            valueClassName="max-w-[70%]"
             rows={environmentRows().map(([name, value]) => [
               name,
               typeof value === "string" ? (
@@ -357,10 +361,11 @@ export default function BrowserPage({ page }: { page: string }) {
       ) : page === "privacy" ? (
         <Privacy />
       ) : (
-        <>
-          <Checks page={page} />
-          {page === "consistency" && <DeepPanel />}
-        </>
+        <div className="flex flex-col gap-3">
+          <Checks page="consistency" />
+          <DeepPanel />
+          <Checks page="automation" />
+        </div>
       )}
     </div>
   );

@@ -1,5 +1,6 @@
 import { t } from "@/i18n";
 import { localizeApiMessage } from "@/i18n/api-message";
+import { normalizeIp } from "@/lib/ip-address";
 
 export type ResponseMode =
   | "json"
@@ -69,7 +70,7 @@ export async function request<T>(
 
 export function endpoint<T>(path: string, init?: RequestInit) {
   return request<T>(
-    `${import.meta.env.VITE_API_BASE_URL ?? "/api"}${path}`,
+    `${import.meta.env?.VITE_API_BASE_URL ?? "/api"}${path}`,
     init,
   );
 }
@@ -84,10 +85,10 @@ export function parseTrace(text: string) {
         return [line.slice(0, i), line.slice(i + 1)];
       }),
   );
-  if (!fields.ip || !/^[\da-fA-F:.]+$/.test(fields.ip))
-    throw new Error(t("common.targetSiteDidReturnReadableEgressIp"));
+  const ip = normalizeIp(fields.ip);
+  if (!ip) throw new Error(t("common.targetSiteDidReturnReadableEgressIp"));
   return {
-    ip: fields.ip,
+    ip,
     country_code: fields.loc,
     colo: fields.colo,
     source: "Cloudflare Trace",
@@ -131,24 +132,6 @@ export async function probe(url: string, signal?: AbortSignal) {
 }
 
 /** Bound browser concurrency without retaining request state between runs. */
-export async function pool<T, R>(
-  items: T[],
-  run: (item: T, index: number) => Promise<R>,
-  limit = 6,
-): Promise<R[]> {
-  let cursor = 0;
-  const results: R[] = new Array(items.length);
-  await Promise.all(
-    Array.from({ length: Math.min(limit, items.length) }, async () => {
-      while (cursor < items.length) {
-        const index = cursor++;
-        results[index] = await run(items[index], index);
-      }
-    }),
-  );
-  return results;
-}
-
 export function maskedIp(ip: string, hidden: boolean) {
   if (!hidden) return ip;
   return ip.includes(":")

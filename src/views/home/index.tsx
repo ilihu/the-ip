@@ -1,29 +1,36 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ConnectivityTile, homeTargets } from "@/components/connectivity";
-import { PrivacyToggle } from "@/components/toolkit";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { UnderlineHover } from "@/components/underline-hover";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSortAnimation } from "@/hooks/use-sort-animation";
 import { t } from "@/i18n";
-import { BrowserSummary } from "@/views/browser/summary";
 import { lookupIp } from "@/views/ip/api";
-import { testConnectivity, type ProbeResult } from "@/views/link/api";
+import { testConnectivity } from "@/views/link/api";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { RotateCw } from "lucide-react";
-import { getGeo, getBrowserIp, getDomesticIp } from "./api";
-import { HomeShortcuts } from "./components/home-shortcuts";
+import { getGeo, getDomesticIp, getOverseasIp } from "./api";
 import { IpOverviewCard } from "./components/ip-overview-card";
-import { IpSearch } from "./components/ip-search";
-import { PlatformSummary } from "./platform-summary";
+import { PagePortrait } from "./page-portrait";
+import { AiAccessSummary, PlatformSummary } from "./platform-summary";
 import { SplitResults } from "./split-results";
+import {
+  homeIpOverviewClass,
+  homeNetworkOverviewClass,
+  homePageClass,
+  homePingGridClass,
+  homeToolbarActionsClass,
+  homeToolbarClass,
+} from "./styles";
 
 export function HomePage() {
   const mobile = useIsMobile();
   const client = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
+  const [sortBySpeed, setSortBySpeed] = useState(false);
   const refresh = async () => {
     setRefreshing(true);
     const filters = {
@@ -67,19 +74,11 @@ export function HomePage() {
     target,
     query: connectivity[index],
   }));
-  if (
-    connectivity.every(
-      (query) => !query.isFetching && (query.isSuccess || query.isError),
-    )
-  ) {
-    orderedTargets.sort((a, b) => {
-      const left =
-        (a.query.data as ProbeResult | undefined)?.median ?? Infinity;
-      const right =
-        (b.query.data as ProbeResult | undefined)?.median ?? Infinity;
-      return left - right;
-    });
-  }
+  if (sortBySpeed)
+    orderedTargets.sort(
+      (a, b) =>
+        (a.query.data?.median ?? Infinity) - (b.query.data?.median ?? Infinity),
+    );
 
   const connectivityRef = useSortAnimation(
     `${mobile}-${orderedTargets.map(({ target }) => target.name).join("|")}`,
@@ -96,15 +95,14 @@ export function HomePage() {
       },
       {
         queryKey: ["browser-ip", 4],
-        queryFn: ({ signal }: { signal: AbortSignal }) =>
-          getBrowserIp(4, signal),
+        queryFn: ({ signal }: { signal: AbortSignal }) => getOverseasIp(signal),
       },
     ].map((probe) => ({ retry: false, staleTime: 60_000, ...probe })),
   });
   const cards = probes.flatMap((query, index) => {
     // Only dedicated probes belong in the overview; per-site routes stay in SplitResults.
-    if (!query.data || query.data.ip.includes(":")) return [];
-    if (index === 1 && query.data?.ip === probes[0].data?.ip) return [];
+    // Hide a probe once it has settled without an IP instead of showing an empty card.
+    if (!query.data && !query.isPending) return [];
     return [
       {
         query,
@@ -141,18 +139,18 @@ export function HomePage() {
   });
   const typeByIp = new Map(ips.map((ip, index) => [ip, typeQueries[index]]));
   return (
-    <div className="home-page">
-      <div className="home-toolbar">
-        <div className="home-toolbar-heading">
-          <h1>{t("home.networkOverview")}</h1>
-          <PrivacyToggle iconOnly />
+    <div className={homePageClass}>
+      <div className={homeToolbarClass}>
+        <div className="flex min-w-0 items-center gap-2">
+          <h1 className="text-[0.875rem] leading-[1.4] font-[650] whitespace-nowrap">
+            {t("home.networkOverview")}
+          </h1>
         </div>
-        <div className="home-toolbar-actions">
-          <IpSearch />
+        <div className={homeToolbarActionsClass}>
           <Button
             variant="ghost"
             size="icon"
-            className="home-refresh"
+            className="text-muted-foreground hover:text-primary"
             disabled={refreshing}
             aria-busy={refreshing}
             aria-label={
@@ -168,32 +166,49 @@ export function HomePage() {
           </Button>
         </div>
       </div>
-      <div className="home-overview home-ip-overview">
-        {cards.map(({ query, data, version, label }, index) => (
+      <div className={homeIpOverviewClass}>
+        {cards.map(({ query, data, version, label }) => (
           <IpOverviewCard
-            key={index}
+            key={label}
             label={label}
             version={version}
             data={data}
             pending={!data && query.isPending}
-            geoQuery={geoByIp.get(data.ip)}
-            typeQuery={typeByIp.get(data.ip)}
+            geoQuery={data ? geoByIp.get(data.ip) : undefined}
+            typeQuery={data ? typeByIp.get(data.ip) : undefined}
           />
         ))}
-        <Card className="home-connectivity-card">
+      </div>
+      <div className={homeNetworkOverviewClass}>
+        <AiAccessSummary />
+        <Card>
           <CardHeader>
-            <div className="row-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <CardTitle>{t("common.networkConnectivity")}</CardTitle>
-              <UnderlineHover asChild>
-                <Link className="small muted" to="/network/connectivity/">
-                  {t("home.viewMore")}
-                </Link>
-              </UnderlineHover>
+              <div className="flex items-center gap-3">
+                <label className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground">
+                  <Switch
+                    size="sm"
+                    checked={sortBySpeed}
+                    onCheckedChange={setSortBySpeed}
+                    aria-label={t("home.sortBySpeed")}
+                  />
+                  <span>{t("home.sortBySpeed")}</span>
+                </label>
+                <UnderlineHover asChild>
+                  <Link
+                    className="text-[0.78rem] whitespace-nowrap text-muted-foreground"
+                    to="/unlock/sites"
+                  >
+                    {t("home.viewMore")}
+                  </Link>
+                </UnderlineHover>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
             <div ref={connectivityRef}>
-              <div className="ping-grid">
+              <div className={homePingGridClass}>
                 {orderedTargets.map(({ target }) => (
                   <ConnectivityTile target={target} key={target.name} />
                 ))}
@@ -204,8 +219,7 @@ export function HomePage() {
       </div>
       <SplitResults summary />
       <PlatformSummary />
-      <BrowserSummary />
-      <HomeShortcuts />
+      <PagePortrait />
     </div>
   );
 }

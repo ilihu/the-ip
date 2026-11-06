@@ -5,7 +5,6 @@ import { getCloudStatus } from "./cloud-status.js";
 import { cfGeo, geoIp, secondaryGeo } from "./geo.js";
 import { clientIp, HttpError, inputJson, json, publicIp } from "./http.js";
 import { siteIcon } from "./icons.js";
-import { ipHealth } from "./ip-health.js";
 import { ipNetwork } from "./ip-network.js";
 import { ipType } from "./ip-type.js";
 import { mapConfig } from "./map.js";
@@ -13,7 +12,6 @@ import { startPing, pingResult, pingNodes } from "./ping.js";
 import { rateLimit } from "./rate-limit.js";
 import { normalizeStatus } from "./service-status.js";
 import services from "./services.json";
-import { lookupSubdomains, subdomainTarget } from "./subdomains.js";
 import { tlsFingerprint } from "./tls-fingerprint.js";
 import { lookupRegistration, registrationTarget } from "./whois.js";
 
@@ -63,8 +61,7 @@ export default {
         throw new HttpError(429, "请求过于频繁，请一分钟后重试");
       if (path === "/dns" || path.startsWith("/dns/"))
         throw new HttpError(404, "接口不存在");
-      const isAction =
-        path === "/ping/start" || path === "/browser/challenges/verify";
+      const isAction = path === "/ping/start";
       if (
         (isAction && request.method !== "POST") ||
         (!isAction && request.method !== "GET")
@@ -76,10 +73,6 @@ export default {
         return json(challengeConfig(env, url.hostname));
       if (path.startsWith("/icons/"))
         return await siteIcon(decodeURIComponent(path.slice(7)));
-      if (path === "/browser/challenges/verify")
-        return json(
-          await verifyChallenge(await inputJson(request), env, url.hostname),
-        );
       if (path === "/map/config") return json(mapConfig(env));
       if (path === "/me") {
         const data = cfGeo(request);
@@ -102,7 +95,6 @@ export default {
             : data,
         );
       }
-      if (path === "/ip/health") return await ipHealth(request, env);
       if (path.startsWith("/ip-type/"))
         return await ipType(decodeURIComponent(path.slice(9)), url.origin);
       if (path.startsWith("/geoip/")) {
@@ -147,14 +139,6 @@ export default {
             };
           },
           (data) => data.sources.length === 2 && data.rdap !== undefined,
-        );
-      }
-      if (path.startsWith("/subdomains/")) {
-        const domain = subdomainTarget(decodeURIComponent(path.slice(12)));
-        return await cachedJson(
-          new URL(`/api/subdomains/${encodeURIComponent(domain)}`, url.origin),
-          300,
-          () => lookupSubdomains(domain),
         );
       }
       if (path.startsWith("/whois/lookup/")) {

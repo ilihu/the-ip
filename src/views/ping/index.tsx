@@ -94,8 +94,8 @@ export default function PingPage() {
       ["finished", "failed"].includes(item.result.status),
     ).length ?? 0;
   return (
-    <div className="lookup-page ping-page">
-      <div className="lookup-search-card">
+    <div>
+      <div className="rounded-xl bg-card p-3">
         <LookupForm
           grouped
           value={params.get("host") ?? ""}
@@ -103,7 +103,11 @@ export default function PingPage() {
           label={t("ping.start")}
           busy={query.isPending || catalog.isPending}
           onSubmit={(host) => {
-            setParams({ host });
+            setParams((current) => {
+              const next = new URLSearchParams(current);
+              next.set("host", host);
+              return next;
+            });
             setProgress(undefined);
             setStopped(false);
             query.reset();
